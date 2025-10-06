@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タイピングディフェンス</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: monospace;
+            background-color: #1a1a2e; /* 宇宙っぽい背景 */
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #gameContainer {
+            width: 800px;
+            max-width: 90%;
+            padding: 20px;
+            background-color: #2c2c54;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        /* プレイヤーとバリアのステータス表示 */
+        #statusArea {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+        }
+
+        .bar-container {
+            width: 48%;
+            background-color: #4a4e69;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 5px;
+            border: 1px solid #c9cba3;
+        }
+
+        #playerHealthBar, #shieldStrengthBar {
+            height: 25px;
+            transition: width 0.3s, background-color 0.3s;
+            text-align: center;
+            line-height: 25px;
+            color: black;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        #playerHealthBar { background-color: #e76f51; } /* 赤系 */
+        #shieldStrengthBar { background-color: #2a9d8f; } /* 緑系 */
+
+        /* タイピングエリア */
+        #typingArea {
+            background-color: #0d0d1b;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        #targetText {
+            font-size: 1.8em;
+            letter-spacing: 1px;
+            white-space: pre; /* 空白を保持 */
+            height: 35px;
+            margin-bottom: 15px;
+        }
+
+        .correct { color: #a7c957; } /* 正しい文字 */
+        .current { background-color: rgba(255, 255, 255, 0.2); } /* 現在入力中の文字 */
+        .incorrect { color: #e76f51; text-decoration: underline wavy #e76f51; } /* 間違った文字 */
+
+        #textInput {
+            width: 100%;
+            padding: 10px;
+            font-size: 1.2em;
+            border: 2px solid #555;
+            border-radius: 5px;
+            box-sizing: border-box;
+            background-color: #3e3e60;
+            color: white;
+        }
+
+        /* メッセージとボタン */
+        #messageArea {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            color: #ffcc00;
+        }
+
+        #startButton {
+            padding: 10px 20px;
+            font-size: 1.2em;
+            background-color: #ffcc00;
+            color: #333;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #startButton:hover { background-color: #e6b800; }
+        #startButton:disabled { background-color: #888; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>🛡️ タイピングディフェンス 🛡️</h1>
+        
+        <div id="messageArea">Press START to defend your base!</div>
+
+        <div id="statusArea">
+            <div>
+                HP: <span id="playerHealthValue">100</span>%
+                <div class="bar-container">
+                    <div id="playerHealthBar" style="width: 100%;">HP 100%</div>
+                </div>
+            </div>
+            <div>
+                バリア強度: <span id="shieldStrengthValue">0</span>%
+                <div class="bar-container">
+                    <div id="shieldStrengthBar" style="width: 0%;">SHIELD 0%</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="typingArea">
+            <div id="targetText"></div>
+            <input type="text" id="textInput" placeholder="ここにタイプしてください..." autofocus disabled>
+        </div>
+
+        <button id="startButton">ゲームスタート</button>
+    </div>
+
+    <script>
+        // --- ゲーム設定 ---
+        const MAX_HP = 100;
+        const MAX_SHIELD_STRENGTH = 100;
+        const GAME_DURATION = 60; // 制限時間 (秒)
+        const ENEMY_ATTACK_INTERVAL = 3000; // 敵の攻撃間隔 (ミリ秒)
+
+        // タイピング課題のリスト
+        const TYPING_CHALLENGES = [
+            "the quick brown fox jumps over the lazy dog",
+            "javascript is fun and challenging to learn",
+            "shield up activate defense matrix now",
+            "accurate and fast typing is crucial for survival",
+            "always be ready for the next enemy attack",
+            "coding makes you a powerful wizard of the screen",
+            "do not panic and keep your focus on the text",
+            "resilience comes from consistent practice",
+        ];
+
+        // --- ゲームの状態 ---
+        let health = MAX_HP;
+        let shieldStrength = 0;
+        let gameActive = false;
+        let currentTargetText = '';
+        let typedCharacters = '';
+        let startTime;
+        let gameTimer;
+        let attackTimer;
+        let totalTypedChars = 0;
+        let correctTypedChars = 0;
+
+        // --- DOM要素 ---
+        const messageArea = document.getElementById('messageArea');
+        const startButton = document.getElementById('startButton');
+        const playerHealthBar = document.getElementById('playerHealthBar');
+        const playerHealthValue = document.getElementById('playerHealthValue');
+        const shieldStrengthBar = document.getElementById('shieldStrengthBar');
+        const shieldStrengthValue = document.getElementById('shieldStrengthValue');
+        const targetTextElement = document.getElementById('targetText');
+        const textInput = document.getElementById('textInput');
+
+        // --- 関数定義 ---
+
+        /**
+         * 新しいタイピング課題を設定する
+         */
+        function loadNewChallenge() {
+            // ランダムに課題を選択
+            const randomIndex = Math.floor(Math.random() * TYPING_CHALLENGES.length);
+            currentTargetText = TYPING_CHALLENGES[randomIndex];
+            typedCharacters = '';
+            
+            // 画面表示を更新
+            renderTargetText();
+            textInput.value = '';
+        }
+
+        /**
+         * 画面上の課題テキストの色分けを更新する
+         */
+        function renderTargetText() {
+            let html = '';
+            for (let i = 0; i < currentTargetText.length; i++) {
+                let char = currentTargetText[i];
+                let className = '';
+
+                if (i < typedCharacters.length) {
+                    // 入力済み
+                    if (typedCharacters[i] === char) {
+                        className = 'correct';
+                    } else {
+                        className = 'incorrect';
+                    }
+                } else if (i === typedCharacters.length) {
+                    // 次に入力すべき文字
+                    className = 'current';
+                }
+
+                html += `<span class="${className}">${char}</span>`;
+            }
+            targetTextElement.innerHTML = html;
+        }
+
+        /**
+         * タイピングの正確さと速度に基づいてバリア強度を計算する
+         * (0% - 100%)
+         */
+        function updateShieldStrength() {
+            const currentTime = Date.now();
+            const elapsedTimeSeconds = (currentTime - startTime) / 1000;
+
+            if (totalTypedChars === 0 || elapsedTimeSeconds === 0) {
+                shieldStrength = 0;
+            } else {
+                // 1. 正確さ (0.0 - 1.0)
+                const accuracy = correctTypedChars / totalTypedChars;
+
+                // 2. 速度 (WPMの簡易版: 1分あたりの正しく打った文字数)
+                // 60秒で100文字 (WPM 20) を打てれば満点と仮定
+                const speedFactor = (correctTypedChars / elapsedTimeSeconds) * 60; // CPM (Characters Per Minute)
+                
+                // 速度ボーナス: 速度をMAX_SHIELD_STRENGTHに正規化 (例: 100CPMで満点)
+                const MAX_CPM_FOR_BONUS = 150; 
+                let normalizedSpeed = Math.min(speedFactor, MAX_CPM_FOR_BONUS) / MAX_CPM_FOR_BONUS;
+
+                // 3. バリア強度の計算
+                // 正確さの比重を高く、速度をボーナスとして加算
+                // strength = (accuracy * 70%) + (normalizedSpeed * 30%) を最大100に
+                let calculatedStrength = (accuracy * 0.7 + normalizedSpeed * 0.3) * 100;
+                
+                // 最終強度を0-100%に制限
+                shieldStrength = Math.min(Math.round(calculatedStrength), MAX_SHIELD_STRENGTH);
+            }
+
+            // UIを更新
+            shieldStrengthValue.textContent = `${shieldStrength}`;
+            shieldStrengthBar.style.width = `${shieldStrength}%`;
+            
+            // 強度に応じて色を変える (高いほど青く)
+            const r = Math.round(255 - (shieldStrength * 2.55)); // 100%で0
+            const g = Math.round(150 + (shieldStrength * 1));
+            const b = 255;
+            shieldStrengthBar.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+            shieldStrengthBar.textContent = `SHIELD ${shieldStrength}%`;
+        }
+
+        /**
+         * 敵の攻撃処理
+         */
+        function enemyAttack() {
+            if (!gameActive) return;
+
+            // バリア強度に応じてダメージを計算
+            const BASE_DAMAGE = 10;
+            // 軽減率: バリア強度が高いほどダメージを軽減
+            const damageReduction = shieldStrength / MAX_SHIELD_STRENGTH; // 0.0 ~ 1.0
+            const actualDamage = Math.max(0, BASE_DAMAGE * (1 - damageReduction));
+
+            // HPを更新
+            health -= actualDamage;
+            if (health < 0) health = 0;
+
+            // メッセージを表示
+            if (actualDamage > 0) {
+                messageArea.textContent = `💥 敵が攻撃！${actualDamage.toFixed(1)}ダメージ。`;
+            } else {
+                messageArea.textContent = `🛡️ 攻撃を防いだ！ダメージなし。`;
+            }
+
+            // HPのUIを更新
+            updateHealthDisplay();
+
+            if (health <= 0) {
+                endGame(false); // ゲームオーバー
+            }
+        }
+
+        /**
+         * HPのUIを更新
+         */
+        function updateHealthDisplay() {
+            playerHealthValue.textContent = `${Math.round(health)}`;
+            playerHealthBar.style.width = `${health}%`;
+            playerHealthBar.textContent = `HP ${Math.round(health)}%`;
+            
+            // HPが低いと赤くする
+            if (health < 30) {
+                playerHealthBar.style.backgroundColor = '#f72585';
+            } else if (health < 60) {
+                playerHealthBar.style.backgroundColor = '#ffc300';
+            } else {
+                playerHealthBar.style.backgroundColor = '#2a9d8f';
+            }
+        }
+
+        /**
+         * ゲームの経過時間を更新し、終了をチェック
+         */
+        function updateGameTime() {
+            const elapsedTime = (Date.now() - startTime) / 1000;
+            const remainingTime = GAME_DURATION - elapsedTime;
+
+            if (remainingTime <= 0) {
+                endGame(true); // 勝利
+                return;
+            }
+
+            messageArea.textContent = `⏳ 残り時間: ${remainingTime.toFixed(1)}秒`;
+        }
+
+
+        /**
+         * タイピング入力処理
+         */
+        function handleInput(event) {
+            if (!gameActive) return;
+
+            const input = event.target.value;
+            typedCharacters = input;
+
+            // 1文字ごとの正誤をチェックし、カウンターを更新
+            const lastTypedChar = input.slice(-1);
+            const targetChar = currentTargetText[input.length - 1];
+
+            if (input.length > typedCharacters.length) {
+                totalTypedChars++;
+                if (lastTypedChar === targetChar) {
+                    correctTypedChars++;
+                }
+            }
+            
+            // 課題の完了チェック
+            if (typedCharacters.length === currentTargetText.length) {
+                // 完全に正しく打てていれば、ボーナスとして即座に新しい課題へ
+                if (typedCharacters === currentTargetText) {
+                    loadNewChallenge();
+                } else {
+                    // 間違っている場合は、バックスペースで修正させる
+                    // ここでは処理なし
+                }
+            }
+
+            // バリア強度を即座に更新
+            updateShieldStrength();
+            renderTargetText();
+        }
+
+        /**
+         * ゲームを開始する
+         */
+        function startGame() {
+            gameActive = true;
+            health = MAX_HP;
+            shieldStrength = 0;
+            totalTypedChars = 0;
+            correctTypedChars = 0;
+            startTime = Date.now();
+            
+            startButton.disabled = true;
+            textInput.disabled = false;
+            textInput.focus();
+
+            loadNewChallenge();
+            updateShieldStrength();
+            updateHealthDisplay();
+            
+            // タイマーと攻撃の開始
+            gameTimer = setInterval(updateGameTime, 100);
+            attackTimer = setInterval(enemyAttack, ENEMY_ATTACK_INTERVAL);
+        }
+
+        /**
+         * ゲームを終了する
+         */
+        function endGame(isWin) {
+            gameActive = false;
+            clearInterval(gameTimer);
+            clearInterval(attackTimer);
+            
+            textInput.disabled = true;
+            startButton.disabled = false;
+            startButton.textContent = 'もう一度プレイ';
+
+            if (isWin) {
+                messageArea.innerHTML = '🎉 **VICTORY!** 基地を防衛しきった！ 🎉';
+            } else {
+                messageArea.innerHTML = '💀 **DEFEAT...** HPが尽きた 💀';
+            }
+        }
+
+        // --- イベントリスナー ---
+        startButton.addEventListener('click', startGame);
+        textInput.addEventListener('input', handleInput);
+
+        // 初期化時のUI表示
+        targetTextElement.textContent = "Press START to begin the defense.";
+        updateHealthDisplay();
+    </script>
+</body>
+</html>
