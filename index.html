@@ -1,1 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプルクリックゲーム</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: sans-serif;
+            background-color: #f0f0f0;
+        }
 
+        #scoreDisplay {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        #clickButton {
+            padding: 20px 40px;
+            font-size: 1.5em;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 5px #388E3C;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        #clickButton:active {
+            box-shadow: 0 2px #388E3C;
+            transform: translateY(3px);
+        }
+    </style>
+</head>
+<body>
+    <h1>クリックしてスコアを増やそう！</h1>
+
+    <div id="scoreDisplay">スコア: 0</div>
+
+    <button id="clickButton">💥 クリック！</button>
+
+    <script>
+        // スコアを保持する変数
+        let score = 0;
+        
+        // HTML要素の参照を取得
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const clickButton = document.getElementById('clickButton');
+
+        // ボタンがクリックされた時の処理
+        function increaseScore() {
+            // スコアを1増やす
+            score = score + 1; // もしくは score++;
+            
+            // スコア表示を更新
+            scoreDisplay.textContent = 'スコア: ' + score;
+
+            // おまけ：一定スコアでメッセージを変更
+            if (score === 10) {
+                clickButton.textContent = '👍 すごい！';
+            } else if (score === 25) {
+                clickButton.textContent = '🚀 スコア爆増中！';
+            } else if (score > 50) {
+                clickButton.textContent = '🌟 クリックマスター！';
+            } else if (score < 10) {
+                clickButton.textContent = '💥 クリック！'; // スコアが10未満に戻ったら元に戻す
+            }
+        }
+
+        // ボタンにクリックイベントリスナーを設定
+        clickButton.addEventListener('click', increaseScore);
+
+        // ゲームの開始時にスコアを初期表示
+        scoreDisplay.textContent = 'スコア: ' + score;
+    </script>
+</body>
+</html>
