@@ -3,83 +3,308 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シンプルクリックゲーム</title>
+    <title>減点要素付き！キャラクタースナップ</title>
     <style>
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            font-family: sans-serif;
-            background-color: #f0f0f0;
-        }
-
-        #scoreDisplay {
-            font-size: 2em;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        #clickButton {
-            padding: 20px 40px;
-            font-size: 1.5em;
-            cursor: pointer;
-            background-color: #4CAF50;
+            font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Segoe UI', sans-serif;
+            background-color: #222;
             color: white;
-            border: none;
-            border-radius: 10px;
-            box-shadow: 0 5px #388E3C;
+            margin: 0;
+            padding-top: 20px;
+        }
+
+        h1 {
+            color: #ffcc00;
+        }
+
+        #gameArea {
+            width: 80vw;
+            height: 60vh;
+            border: 5px solid #ffcc00;
+            position: relative;
+            background-color: #333;
+            margin: 20px 0;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        /* ターゲット共通のスタイル */
+        .character {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+            cursor: pointer;
+            user-select: none;
             transition: transform 0.1s, box-shadow 0.1s;
         }
 
-        #clickButton:active {
-            box-shadow: 0 2px #388E3C;
-            transform: translateY(3px);
+        /* クリックして良いキャラ (グッドキャラ) */
+        .good {
+            background-color: #f0f8ff; /* 薄い青 */
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.7); /* 青く光る */
+        }
+        .good:hover {
+            transform: scale(1.05);
+        }
+        .good:active {
+            transform: scale(0.95);
+            background-color: #ffeb3b;
+            box-shadow: 0 0 5px rgba(255, 255, 0, 0.9);
+        }
+
+        /* クリックしてはいけないキャラ (バッドキャラ) */
+        .bad {
+            background-color: #ff7f50; /* サンゴ色 */
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.7); /* 赤く光る */
+        }
+        .bad:hover {
+            transform: scale(1.05);
+        }
+        .bad:active {
+            transform: scale(0.95);
+            background-color: #c70039;
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.9);
+        }
+
+        #infoDisplay {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: #ccffcc;
+        }
+
+        #startButton {
+            padding: 12px 25px;
+            font-size: 1.3em;
+            background-color: #ffcc00;
+            color: #333;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+            box-shadow: 0 4px #e6b800;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        #startButton:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px #ccaa00;
+        }
+
+        #startButton:disabled {
+            background-color: #888;
+            color: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
         }
     </style>
 </head>
 <body>
-    <h1>クリックしてスコアを増やそう！</h1>
+    <h1>❌ グッドキャラだけを狙え！ ❌</h1>
 
-    <div id="scoreDisplay">スコア: 0</div>
+    <div id="infoDisplay">
+        <span id="scoreDisplay">スコア: 0</span> | 
+        <span id="timerDisplay">残り時間: 10.00秒</span>
+    </div>
 
-    <button id="clickButton">💥 クリック！</button>
+    <button id="startButton">ゲームスタート！</button>
+
+    <div id="gameArea">
+        </div>
 
     <script>
-        // スコアを保持する変数
-        let score = 0;
-        
-        // HTML要素の参照を取得
+        // ゲーム設定
+        const GAME_DURATION = 10; // 制限時間 (秒)
+        const SPAWN_INTERVAL = 1000; // キャラクターの出現間隔 (ミリ秒)
+        const CHARACTER_LIFETIME = 1500; // キャラクターが消えるまでの時間 (ミリ秒)
+        const MAX_CHARACTERS = 5; // 画面上に同時に存在する最大キャラクター数
+
+        const GOOD_EMOJIS = ['😊', '😎', '🤩', '🥳', '😇']; // クリックで加点
+        const BAD_EMOJIS = ['😠', '😫', '😩', '😵', '😱']; // クリックで減点
+
+        // HTML要素の参照
         const scoreDisplay = document.getElementById('scoreDisplay');
-        const clickButton = document.getElementById('clickButton');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const startButton = document.getElementById('startButton');
+        const gameArea = document.getElementById('gameArea');
 
-        // ボタンがクリックされた時の処理
-        function increaseScore() {
-            // スコアを1増やす
-            score = score + 1; // もしくは score++;
+        // ゲーム状態変数
+        let score = 0;
+        let timeLeft = GAME_DURATION;
+        let gameActive = false;
+        let timerInterval;
+        let spawnInterval;
+        let characterIdCounter = 0;
+
+        // ------------------
+        // 関数定義
+        // ------------------
+
+        /**
+         * キャラクターをランダムな位置に生成する
+         */
+        function spawnCharacter() {
+            if (!gameActive) return;
+
+            // 画面上のキャラクター数が上限を超えていたら生成しない
+            if (gameArea.children.length >= MAX_CHARACTERS) return;
+
+            // 良いキャラ（70%）か悪いキャラ（30%）かをランダムに決定
+            const isGood = Math.random() < 0.7;
+            const emojiList = isGood ? GOOD_EMOJIS : BAD_EMOJIS;
+            const characterType = isGood ? 'good' : 'bad';
             
-            // スコア表示を更新
-            scoreDisplay.textContent = 'スコア: ' + score;
+            // キャラクター要素の作成
+            const character = document.createElement('div');
+            character.className = `character ${characterType}`;
+            character.id = `char-${characterIdCounter++}`;
+            character.textContent = emojiList[Math.floor(Math.random() * emojiList.length)];
+            
+            // ランダムな位置を計算
+            const charSize = 70; // CSSで設定したサイズ
+            const areaWidth = gameArea.clientWidth;
+            const areaHeight = gameArea.clientHeight;
+            const newX = Math.random() * (areaWidth - charSize);
+            const newY = Math.random() * (areaHeight - charSize);
 
-            // おまけ：一定スコアでメッセージを変更
-            if (score === 10) {
-                clickButton.textContent = '👍 すごい！';
-            } else if (score === 25) {
-                clickButton.textContent = '🚀 スコア爆増中！';
-            } else if (score > 50) {
-                clickButton.textContent = '🌟 クリックマスター！';
-            } else if (score < 10) {
-                clickButton.textContent = '💥 クリック！'; // スコアが10未満に戻ったら元に戻す
-            }
+            character.style.left = `${newX}px`;
+            character.style.top = `${newY}px`;
+
+            // クリックイベントリスナーを設定
+            character.addEventListener('click', handleCharacterClick);
+
+            // ゲームエリアに追加
+            gameArea.appendChild(character);
+
+            // 一定時間後に自動的に消えるように設定
+            setTimeout(() => {
+                if (gameArea.contains(character)) {
+                    // 消える時にペナルティは与えない
+                    gameArea.removeChild(character);
+                }
+            }, CHARACTER_LIFETIME);
         }
 
-        // ボタンにクリックイベントリスナーを設定
-        clickButton.addEventListener('click', increaseScore);
+        /**
+         * 時間をカウントダウンし、ゲーム終了をチェックする
+         */
+        function countdown() {
+            timeLeft -= 0.01;
+            
+            if (timeLeft <= 0) {
+                timeLeft = 0;
+                endGame();
+            }
 
-        // ゲームの開始時にスコアを初期表示
-        scoreDisplay.textContent = 'スコア: ' + score;
+            timerDisplay.textContent = `残り時間: ${timeLeft.toFixed(2)}秒`;
+        }
+
+        /**
+         * キャラクタークリック時の処理
+         */
+        function handleCharacterClick(event) {
+            if (!gameActive) return;
+
+            const targetChar = event.target;
+            const isGood = targetChar.classList.contains('good');
+
+            if (isGood) {
+                // グッドキャラをクリック: 加点
+                score += 10;
+                // クリック時のフィードバック
+                targetChar.textContent = '✅';
+            } else {
+                // バッドキャラをクリック: 減点
+                score -= 15; // 減点幅を大きくして難易度アップ
+                // クリック時のフィードバック
+                targetChar.textContent = '❌';
+                // スコアがマイナスにならないように下限を設定
+                if (score < 0) score = 0;
+            }
+
+            scoreDisplay.textContent = `スコア: ${score}`;
+
+            // クリックされたキャラクターを削除
+            targetChar.removeEventListener('click', handleCharacterClick);
+            targetChar.style.transition = 'none'; // 即座に消すための準備
+            setTimeout(() => {
+                targetChar.remove();
+            }, 100); // 少し遅延させて、フィードバック（✅/❌）が見えるようにする
+        }
+
+        /**
+         * ゲームを開始する
+         */
+        function startGame() {
+            if (gameActive) return;
+
+            // 既存のキャラクターをすべて削除
+            gameArea.innerHTML = '';
+
+            // 状態の初期化
+            gameActive = true;
+            score = 0;
+            timeLeft = GAME_DURATION;
+            scoreDisplay.textContent = 'スコア: 0';
+            startButton.disabled = true;
+
+            // 0.01秒ごとにカウントダウンを実行
+            timerInterval = setInterval(countdown, 10); 
+            
+            // キャラクターの生成を開始
+            spawnInterval = setInterval(spawnCharacter, SPAWN_INTERVAL);
+        }
+
+        /**
+         * ゲームを終了する
+         */
+        function endGame() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            clearInterval(spawnInterval);
+            
+            // すべてのキャラクターを削除
+            gameArea.innerHTML = '';
+            
+            const finalMessage = document.createElement('div');
+            finalMessage.className = 'character good'; // 見た目だけ拝借
+            finalMessage.style.position = 'absolute';
+            finalMessage.style.left = '50%';
+            finalMessage.style.top = '50%';
+            finalMessage.style.transform = 'translate(-50%, -50%)';
+            finalMessage.style.backgroundColor = '#ff6347';
+            finalMessage.style.width = 'auto';
+            finalMessage.style.height = 'auto';
+            finalMessage.style.padding = '20px';
+            finalMessage.style.borderRadius = '10px';
+            finalMessage.textContent = `最終スコア: ${score}点！`;
+            finalMessage.style.fontSize = '2em';
+            finalMessage.style.cursor = 'default';
+
+            gameArea.appendChild(finalMessage);
+            
+            startButton.textContent = 'もう一度プレイ';
+            startButton.disabled = false;
+
+            alert(`ゲーム終了！あなたの最終スコアは ${score} 点です！`);
+        }
+
+        // ------------------
+        // イベントリスナーの設定
+        // ------------------
+
+        startButton.addEventListener('click', startGame);
+
+        // 初期表示を更新
+        timerDisplay.textContent = `残り時間: ${GAME_DURATION.toFixed(2)}秒`;
     </script>
 </body>
 </html>
