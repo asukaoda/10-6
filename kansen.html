@@ -5,498 +5,94 @@
   <title>パンデミック・ディフェンダー</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
+    /* -------------------------
+       Theme & layout variables
+       ------------------------- */
     :root{
-      --bg:#0f1724; --card:#0b1220; --accent:#22c55e; --danger:#ef4444; --mut:#f59e0b;
+      --bg-1: #071026;
+      --bg-2: #052034;
+      --card: #071b2a;
+      --muted: #9fb3d1;
+      --text: #e6eef8;
+      --accent: linear-gradient(90deg,#22c55e,#10b981);
+      --accent-solid: #22c55e;
+      --danger: linear-gradient(90deg,#fb7185,#ef4444);
+      --vax: linear-gradient(90deg,#60a5fa,#3b82f6);
       --glass: rgba(255,255,255,0.03);
-      font-family: "Helvetica Neue", Arial, sans-serif;
-    }
-    body{ margin:0; min-height:100vh; background:linear-gradient(180deg,#071026 0%, #052034 100%); color:#e6eef8; display:flex; align-items:center; justify-content:center; padding:24px; }
-    .wrap{ width:980px; max-width:100%; background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); border-radius:12px; box-shadow: 0 10px 30px rgba(2,6,23,0.7); padding:20px; }
-    header{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-    h1{ margin:0; font-size:20px; letter-spacing:0.6px; }
-    .topline{ font-size:13px; color:#9fb3d1; }
-    .main{ display:grid; grid-template-columns: 360px 1fr; gap:18px; margin-top:18px; }
-    .card{ background:var(--card); border-radius:10px; padding:14px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.02); }
-    #stats p{ margin:8px 0; font-size:14px; }
-    .stat-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
-    .big{ font-weight:700; font-size:18px; color:#fff; }
-    .progress{ width:100%; height:12px; background:var(--glass); border-radius:8px; overflow:hidden; }
-    .bar{ height:100%; width:0%; background:linear-gradient(90deg,var(--accent), #10b981); transition:width 0.5s ease; }
-    .bar-vax{ background:linear-gradient(90deg,#60a5fa,#3b82f6); }
-    .bar-danger{ background:linear-gradient(90deg,#fb7185,#ef4444); }
-    .actions{ display:flex; flex-direction:column; gap:8px; }
-    .actions button{ padding:10px 12px; border-radius:8px; border:0; background:#122433; color:#dff4e6; font-weight:600; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
-    .actions button:disabled{ opacity:0.45; cursor:not-allowed; }
-    .cost{ font-size:13px; color:#bcd8c3; }
-    .log{ max-height:280px; overflow:auto; font-size:13px; color:#cfe8ff; background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent); padding:8px; border-radius:8px; }
-    footer{ margin-top:14px; display:flex; justify-content:space-between; align-items:center; color:#9fb3d1; font-size:13px; }
-    .center{ text-align:center; }
-    .small{ font-size:12px; color:#9fb3d1; }
-    .status-pill{ padding:6px 10px; border-radius:999px; background:rgba(255,255,255,0.03); font-weight:700; }
-    .flex{ display:flex; gap:8px; align-items:center; }
-    @media(max-width:880px){ .main{ grid-template-columns: 1fr; } .wrap{ padding:12px; } }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>🌍 パンデミック・ディフェンダー</h1>
-        <div class="topline">あなたは国際防疫チームの司令官。世界を守って感染を収束させよう。</div>
-      </div>
-      <div class="flex">
-        <div class="small">ゲーム速度：<span id="speedLabel">標準</span></div>
-        <select id="speed" title="ゲーム速度">
-          <option value="1000">遅い</option>
-          <option value="700" selected>標準</option>
-          <option value="350">速い</option>
-        </select>
-      </div>
-    </header>
-
-    <div class="main">
-      <!-- 左：操作＆ログ -->
-      <div>
-        <div class="card" id="stats">
-          <p><span class="small">世界人口</span> <span class="big" id="worldPop">7,800,000,000</span></p>
-          <div class="stat-row"><div>感染者</div><div class="big" id="infected">100,000</div></div>
-          <div class="stat-row"><div>治癒者</div><div class="big" id="recovered">0</div></div>
-          <div class="stat-row"><div>死亡者</div><div class="big" id="dead">0</div></div>
-          <p style="margin-top:8px;"><span class="small">ワクチン進行率</span></p>
-          <div class="progress" style="margin-bottom:8px;"><div id="vaxBar" class="bar bar-vax" style="width:0%"></div></div>
-          <div class="stat-row"><div>資源</div><div class="big" id="resources">15</div></div>
-          <div style="margin-top:10px;">
-            <div class="small">感染率の目安： <span id="spreadLabel">やや拡大中</span></div>
-            <div class="progress" style="margin-top:6px;"><div id="spreadBar" class="bar bar-danger" style="width:10%"></div></div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-top:12px;">
-          <div class="actions">
-            <button id="btnResearch"><span>🧪 ワクチン研究</span><span class="cost">Cost 10</span></button>
-            <button id="btnLockdown"><span>🚫 ロックダウン（国境封鎖）</span><span class="cost">Cost 8</span></button>
-            <button id="btnMedical"><span>🏥 医療支援（病床追加）</span><span class="cost">12</span></button>
-            <button id="btnInfo"><span>📢 情報発信（啓蒙/デマ対策）</span><span class="cost">6</span></button>
-          </div>
-          <div style="margin-top:10px;" class="small">※ 各アクションは数秒の効果持続とクールダウンあり。</div>
-        </div>
-
-        <div class="card" style="margin-top:12px;">
-          <div class="log" id="log"></div>
-        </div>
-      </div>
-
-      <!-- 右：ゲーム領域（説明・大きめ表示） -->
-      <div>
-        <div class="card center">
-          <h2 id="stageTitle">ステージ：グローバル・アウトブレイク</h2>
-          <p class="small" style="max-width:720px; margin:0 auto 12px;">シミュレーションが秒ごとに進行します。資源を使って対策を打ち、ワクチンを完成させて感染を収束させましょう。</p>
-
-          <div style="display:flex; gap:10px; justify-content:center; margin:8px 0;">
-            <div style="text-align:left;">
-              <div class="small">感染率（R相当）</div>
-              <div class="big" id="spreadVal">1.03</div>
-            </div>
-            <div style="text-align:left;">
-              <div class="small">致死率</div>
-              <div class="big" id="deathVal">0.10%</div>
-            </div>
-            <div style="text-align:left;">
-              <div class="small">ワクチン進行速度</div>
-              <div class="big" id="researchVal">0.5%/tick</div>
-            </div>
-          </div>
-
-          <div style="margin-top:12px; display:flex; gap:12px; justify-content:center;">
-            <button id="btnPause">⏸️ 一時停止</button>
-            <button id="btnReset">🔄 リセット</button>
-          </div>
-        </div>
-
-        <div class="card" style="margin-top:12px;">
-          <div class="small">ヒント：</div>
-          <ul class="small" style="margin:8px 0 0 18px; line-height:1.6;">
-            <li>ワクチンは完成すると感染数を劇的に減らす。</li>
-            <li>ロックダウンは感染拡大を抑えるが資源消費と反発が起きる（イベントで表現）。</li>
-            <li>医療支援で死亡率を下げ、治癒率を上げられます。</li>
-            <li>資源は時間で回復します。ランダムイベントは良いものも悪いものもあります。</li>
-          </ul>
-        </div>
-
-      </div>
-    </div>
-
-    <footer>
-      <div class="small">製作：HTML/CSS/JS デモ / クリックで対策を実行</div>
-      <div><span class="status-pill" id="gameStatus">進行中</span></div>
-    </footer>
-  </div>
-
-  <script>
-    // ---------- 初期パラメータ ----------
-    const worldPop = 7800000000; // 世界人口（固定表示）
-    let infected = 100000;       // 現在感染者数
-    let recovered = 0;
-    let dead = 0;
-    let vaccineProgress = 0;     // 0..100
-    let resources = 15;
-
-    // 動的パラメータ（ゲーム的）
-    let spreadRate = 1.03;       // 感染者がこの倍率で増える（1.00 = 停滞）
-    let baseHealRate = 0.01;     // 感染者のうち回復する割合/ティック
-    let baseDeathRate = 0.001;   // 感染者のうち死亡する割合/ティック
-    let researchRate = 0.5;      // ワクチン進行の基本速度（%/tick）
-    let tickMs = 700;            // デフォルトのティック間隔（ms）
-    let running = true;
-    let gameOver = false;
-
-    // ボタン状態・クールダウン管理
-    const cooldowns = {
-      research: 0,
-      lockdown: 0,
-      medical: 0,
-      info: 0
-    };
-
-    // 効果持続カウンタ（ティック数）
-    let effects = {
-      lockdown: 0, // 時間中 spreadRate減少
-      medical: 0,  // 死亡率減少・治癒率増加
-      info: 0      // デマ抑制 = アクション効果UP
-    };
-
-    // DOM
-    const el = id => document.getElementById(id);
-    const logEl = el('log');
-    const infectedEl = el('infected');
-    const recoveredEl = el('recovered');
-    const deadEl = el('dead');
-    const vaxBar = el('vaxBar');
-    const resourcesEl = el('resources');
-    const spreadBar = el('spreadBar');
-    const spreadLabel = el('spreadLabel');
-    const spreadVal = el('spreadVal');
-    const deathVal = el('deathVal');
-    const researchVal = el('researchVal');
-    const btnResearch = el('btnResearch');
-    const btnLockdown = el('btnLockdown');
-    const btnMedical = el('btnMedical');
-    const btnInfo = el('btnInfo');
-    const btnPause = el('btnPause');
-    const btnReset = el('btnReset');
-    const speedSelect = el('speed');
-    const speedLabel = el('speedLabel');
-    const gameStatus = el('gameStatus');
-    const worldPopEl = el('worldPop');
-
-    worldPopEl.textContent = worldPop.toLocaleString();
-
-    // 初期ログ
-    addLog("ゲーム開始。初期感染者：" + infected.toLocaleString());
-
-    // ---------- UI 更新関数 ----------
-    function updateUI(){
-      infectedEl.textContent = Math.floor(infected).toLocaleString();
-      recoveredEl.textContent = Math.floor(recovered).toLocaleString();
-      deadEl.textContent = Math.floor(dead).toLocaleString();
-      resourcesEl.textContent = Math.floor(resources);
-      vaxBar.style.width = vaccineProgress.toFixed(1) + "%";
-      spreadBar.style.width = Math.min(100, (spreadRate - 0.9) * 80) + "%"; // 視覚化
-      spreadVal.textContent = spreadRate.toFixed(3);
-      deathVal.textContent = (baseDeathRate * 100).toFixed(2) + "%";
-      researchVal.textContent = researchRate.toFixed(2) + "%/tick";
-      // ボタン enabled/disabled
-      btnResearch.disabled = (resources < 10) || cooldowns.research > 0 || gameOver;
-      btnLockdown.disabled = (resources < 8) || cooldowns.lockdown > 0 || gameOver;
-      btnMedical.disabled = (resources < 12) || cooldowns.medical > 0 || gameOver;
-      btnInfo.disabled = (resources < 6) || cooldowns.info > 0 || gameOver;
-      // cooldown表示
-      btnResearch.querySelector('.cost').textContent = cooldowns.research>0 ? `(${cooldowns.research})` : 'Cost 10';
-      btnLockdown.querySelector('.cost').textContent = cooldowns.lockdown>0 ? `(${cooldowns.lockdown})` : 'Cost 8';
-      btnMedical.querySelector('.cost').textContent = cooldowns.medical>0 ? `(${cooldowns.medical})` : 'Cost 12';
-      btnInfo.querySelector('.cost').textContent = cooldowns.info>0 ? `(${cooldowns.info})` : 'Cost 6';
-      gameStatus.textContent = gameOver ? 'ゲーム終了' : running ? '進行中' : '停止中';
+      --glass-2: rgba(255,255,255,0.02);
+      --glass-3: rgba(255,255,255,0.015);
+      --radius: 12px;
+      --shadow: 0 10px 30px rgba(2,6,23,0.7);
+      font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
     }
 
-    // ---------- ログ ----------
-    function addLog(msg){
-      const time = new Date().toLocaleTimeString();
-      logEl.innerHTML = `<div>[${time}] ${escapeHtml(msg)}</div>` + logEl.innerHTML;
-    }
-    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-    // ---------- アクション（プレイヤー操作） ----------
-    btnResearch.addEventListener('click', ()=> {
-      if(resources < 10 || cooldowns.research>0 || gameOver) return;
-      resources -= 10;
-      cooldowns.research = 6; // 6 ticks cooldown
-      // immediate boost to researchRate for a while
-      researchRate += 1.5; // +1.5%/tick temporary
-      effects.researchBoost = 8; // ticks
-      addLog("ワクチン研究に資源を投入。研究速度が上昇！");
-      updateUI();
-    });
-
-    btnLockdown.addEventListener('click', ()=> {
-      if(resources < 8 || cooldowns.lockdown>0 || gameOver) return;
-      resources -= 8;
-      cooldowns.lockdown = 10;
-      effects.lockdown = 10; // ticks with effect
-      // lower spreadRate multiplicatively
-      spreadRate *= 0.85;
-      addLog("国境封鎖を実施。感染拡大が鈍化します（短時間）。");
-      updateUI();
-    });
-
-    btnMedical.addEventListener('click', ()=> {
-      if(resources < 12 || cooldowns.medical>0 || gameOver) return;
-      resources -= 12;
-      cooldowns.medical = 12;
-      effects.medical = 12;
-      // immediate better treatment
-      baseDeathRate *= 0.7; // reduce death rate by 30%
-      baseHealRate *= 1.4;  // increase heal rate by 40%
-      addLog("医療支援を展開。死亡率ダウン、回復率アップ（短時間）。");
-      updateUI();
-    });
-
-    btnInfo.addEventListener('click', ()=> {
-      if(resources < 6 || cooldowns.info>0 || gameOver) return;
-      resources -= 6;
-      cooldowns.info = 8;
-      effects.info = 8;
-      // improve action efficiency and reduce chance of 'deception' events
-      addLog("情報発信キャンペーンを開始。市民の協力が得られやすくなります。");
-      updateUI();
-    });
-
-    // Pause / Reset
-    btnPause.addEventListener('click', ()=> {
-      running = !running;
-      btnPause.textContent = running ? '⏸️ 一時停止' : '▶️ 再開';
-      updateUI();
-    });
-    btnReset.addEventListener('click', ()=> {
-      if(confirm("リセットしますか？現在の進行は失われます。")) init();
-    });
-
-    // Speed control
-    speedSelect.addEventListener('change', ()=> {
-      tickMs = Number(speedSelect.value);
-      speedLabel.textContent = tickMs>=900 ? '遅い' : tickMs>=500 ? '標準' : '速い';
-      restartTicker();
-    });
-
-    // ---------- シミュレーションティック ----------
-    let ticker = null;
-    function tick(){
-      if(!running || gameOver) return;
-
-      // 1) 資源回復（少量）
-      resources += 0.6; // 毎tick回復
-      // 2) 研究の自動進行（研究Rate）
-      vaccineProgress += researchRate;
-      if(vaccineProgress > 100) vaccineProgress = 100;
-
-      // 3) 感染の増減
-      // 感染の増加は現在感染者 * (spreadRate - 1) だが抑制やワクチン効果、上限も考慮
-      const susceptible = Math.max(0, worldPop - infected - recovered - dead);
-      // new infections this tick (simplified)
-      const potentialNew = infected * (spreadRate - 1.0);
-      // scale with susceptible fraction:
-      const newInfections = Math.min(susceptible, Math.max(0, potentialNew));
-      infected += newInfections;
-
-      // recoveries and deaths:
-      const recoveries = infected * baseHealRate;
-      const deaths = infected * baseDeathRate;
-      recovered += recoveries;
-      dead += deaths;
-      infected = Math.max(0, infected - recoveries - deaths);
-
-      // 4) ワクチン完成時の効果（完了した瞬間に大きな効果）
-      if(vaccineProgress >= 100 && !gameOver){
-        // ワクチン完成イベント（1回）
-        addLog("🎉 ワクチン完成！世界的な接種が始まり感染が急速に収束します。");
-        // apply big positive effects
-        spreadRate *= 0.5;
-        baseHealRate *= 2.5;
-        baseDeathRate *= 0.4;
-        // slowly reduce infected each tick via an emergency campaign: handle by current dynamics
-        vaccineProgress = 100; // clamp
-        // To avoid repeating, set vaccineProgress to 100 and set a flag:
-        vaccineUsed = true;
-      }
-
-      // 5) ランダムイベント（低確率）
-      if(Math.random() < 0.12){ // 12% chance each tick
-        triggerEvent();
-      }
-
-      // 6) Effects duration handling (decrement and revert when expire)
-      handleEffects();
-
-      // 7) cooldown decrement
-      for(const k in cooldowns) if(cooldowns[k] > 0) cooldowns[k]--;
-
-      // 8) spreadRate natural drift (slight) - prevents stuck at exact value
-      spreadRate = Math.max(0.85, Math.min(1.6, spreadRate * (1 + (Math.random()-0.5)*0.01)));
-
-      // 9) clamp numbers and check end condition
-      clampNumbers();
-
-      updateUI();
-      checkWinLose();
+    /* -------------------------
+       Global
+       ------------------------- */
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:
+        radial-gradient(1200px 600px at 10% 10%, rgba(34,197,94,0.04), transparent 6%),
+        linear-gradient(180deg,var(--bg-1) 0%, var(--bg-2) 100%);
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:28px;
     }
 
-    let vaccineUsed = false;
-
-    function clampNumbers(){
-      // ensure not exceeding worldPop
-      const total = infected + recovered + dead;
-      if(total > worldPop){
-        const overflow = total - worldPop;
-        // reduce recovered proportionally
-        recovered -= overflow;
-        if(recovered < 0) recovered = 0;
-      }
-      // floor small decimals for UI clarity (but keep floats for simulation)
-      infected = Math.max(0, infected);
-      recovered = Math.max(0, recovered);
-      dead = Math.max(0, dead);
-      resources = Math.max(0, resources);
+    .wrap{
+      width:1000px;
+      max-width:100%;
+      border-radius:16px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      box-shadow: var(--shadow);
+      padding:20px;
+      transform: translateZ(0);
+      overflow:hidden;
     }
 
-    // ---------- ランダムイベント ----------
-    function triggerEvent(){
-      const r = Math.random();
-      // if info effect active, reduce chance of negative events
-      const infoActive = effects.info > 0;
-      if(r < 0.12 && !infoActive){ // small chance of bad mutation event
-        // mutation: increase spreadRate moderately
-        spreadRate *= 1.18;
-        addLog("⚠️ 変異株が発生！感染力が上昇しました。対策を急いで。");
-      } else if(r < 0.3){
-        // international aid
-        resources += 6 + Math.floor(Math.random()*6);
-        addLog("✈️ 国際支援が到着。資源を入手しました。");
-      } else if(r < 0.45){
-        // misinformation event reduces effectiveness temporarily
-        if(!infoActive && Math.random()<0.6){
-          spreadRate *= 1.12;
-          addLog("📵 デマ拡散：対策の効果が一時的に下がりました。情報対策を。");
-        } else {
-          addLog("ℹ️ 情報共有がうまくいき、協力が広がりました。");
-        }
-      } else if(r < 0.6){
-        // vaccine breakthrough: slightly accelerate research
-        researchRate += 0.25;
-        addLog("🔬 研究ブレイクスルー発生、研究速度がわずかに上昇。");
-      } else {
-        // neutral minor event
-        addLog("ニュース更新：現地状況に変化なし。");
-      }
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+    }
+    h1{
+      margin:0;
+      font-size:20px;
+      letter-spacing:0.4px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .topline{ color:var(--muted); font-size:13px; margin-top:6px; }
+
+    /* -------------------------
+       Main grid
+       ------------------------- */
+    .main{
+      display:grid;
+      grid-template-columns: 380px 1fr;
+      gap:18px;
+      margin-top:18px;
     }
 
-    // ---------- effects handling ----------
-    function handleEffects(){
-      // research boost effect expiration
-      if(effects.researchBoost > 0){
-        effects.researchBoost--;
-        if(effects.researchBoost === 0){
-          researchRate = Math.max(0.3, researchRate - 1.5); // revert temporary boost
-          addLog("ワクチン研究の即効ブーストが終了。継続的な投資が必要です。");
-        }
-      }
-
-      // lockdown duration
-      if(effects.lockdown > 0){
-        effects.lockdown--;
-        if(effects.lockdown === 0){
-          // revert part of spreadRate back (approx)
-          spreadRate /= 0.85;
-          addLog("ロックダウンが解除され、移動制限が緩和されました。");
-        }
-      }
-
-      // medical duration
-      if(effects.medical > 0){
-        effects.medical--;
-        if(effects.medical === 0){
-          baseDeathRate /= 0.7;
-          baseHealRate /= 1.4;
-          addLog("医療支援効果が徐々に減少しました。");
-        }
-      }
-
-      // info duration: no direct numeric change but reduces chance of negative events while active
-      if(effects.info > 0){
-        effects.info--;
-        if(effects.info === 0){
-          addLog("情報発信キャンペーンの効果が落ち着きました。");
-        }
-      }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius: var(--radius);
+      padding:16px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.03);
     }
 
-    // ---------- 勝敗判定 ----------
-    function checkWinLose(){
-      // win: 感染者がほぼゼロ（一定以下）かつワクチン使用済みで収束傾向
-      if(!gameOver && infected < 1000 && vaccineUsed){
-        addLog("🏆 感染はほぼ収束しました。勝利：世界は守られました！");
-        gameOver = true;
-        running = false;
-      }
-      // lose: 感染が世界人口の50%以上
-      if(!gameOver && (infected + recovered + dead) > worldPop * 0.5){
-        addLog("💀 致命的：感染が世界の半数を超えました。敗北です。");
-        gameOver = true;
-        running = false;
-      }
-      updateUI();
-    }
-
-    // ---------- メインループ管理 ----------
-    function startTicker(){
-      if(ticker) clearInterval(ticker);
-      ticker = setInterval(tick, tickMs);
-    }
-    function restartTicker(){
-      if(ticker) clearInterval(ticker);
-      ticker = setInterval(tick, tickMs);
-    }
-
-    // ---------- 初期化（リセット） ----------
-    function init(){
-      infected = 100000;
-      recovered = 0;
-      dead = 0;
-      vaccineProgress = 0;
-      resources = 15;
-      spreadRate = 1.03;
-      baseHealRate = 0.01;
-      baseDeathRate = 0.001;
-      researchRate = 0.5;
-      vaccineUsed = false;
-      gameOver = false;
-      running = true;
-      for(const k in cooldowns) cooldowns[k]=0;
-      effects = { lockdown:0, medical:0, info:0 };
-      logEl.innerHTML = '';
-      addLog("ゲームをリセットしました。");
-      updateUI();
-    }
-
-    // ---------- 初回セットアップ ----------
-    init();
-    startTicker();
-
-    // safety: update UI periodically even if no tick (for buttons)
-    setInterval(updateUI, 500);
-
-    // expose some functions for debugging in console (optional)
-    window.__pd = { state: ()=>({infected, recovered, dead, vaccineProgress, resources, spreadRate}), addLog };
-
-  </script>
-</body>
-</html>
-
+    /* -------------------------
+       Stats panel
+       ------------------------- */
+    #stats p{ margin:8px 0; font-size:14px }
+    .stat-row{ display:flex; justify-content:space-b
