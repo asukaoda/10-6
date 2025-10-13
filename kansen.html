@@ -22,7 +22,7 @@
       --glass-2: rgba(255,255,255,0.02);
       --glass-3: rgba(255,255,255,0.015);
       --radius: 12px;
-      --shadow: 0 10px 30px rgba(2,6,23,0.7);
+      --shadow: 0 6px 20px rgba(2,6,23,0.6);
       font-family: Inter, "Helvetica Neue", Arial, sans-serif;
       -webkit-font-smoothing:antialiased;
       -moz-osx-font-smoothing:grayscale;
@@ -31,28 +31,28 @@
     /* -------------------------
        Global
        ------------------------- */
-    *{box-sizing:border-box}
-    html,body{height:100%}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;}
     body{
       margin:0;
       min-height:100vh;
       background:
-        radial-gradient(1200px 600px at 10% 10%, rgba(34,197,94,0.04), transparent 6%),
+        radial-gradient(800px 400px at 10% 10%, rgba(34,197,94,0.04), transparent 6%),
         linear-gradient(180deg,var(--bg-1) 0%, var(--bg-2) 100%);
       color:var(--text);
       display:flex;
       align-items:center;
       justify-content:center;
-      padding:28px;
+      padding:20px;
     }
 
     .wrap{
-      width:1000px;
-      max-width:100%;
+      width:100%;
+      max-width:600px;
       border-radius:16px;
       background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
       box-shadow: var(--shadow);
-      padding:20px;
+      padding:16px;
       transform: translateZ(0);
       overflow:hidden;
     }
@@ -62,37 +62,96 @@
       justify-content:space-between;
       align-items:flex-start;
       gap:12px;
+      flex-wrap:wrap;
     }
     h1{
       margin:0;
-      font-size:20px;
+      font-size:18px;
       letter-spacing:0.4px;
       display:flex;
       gap:10px;
       align-items:center;
     }
-    .topline{ color:var(--muted); font-size:13px; margin-top:6px; }
+    .topline{ color:var(--muted); font-size:12px; margin-top:6px; }
 
     /* -------------------------
        Main grid
        ------------------------- */
     .main{
-      display:grid;
-      grid-template-columns: 380px 1fr;
-      gap:18px;
-      margin-top:18px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      margin-top:16px;
     }
 
     .card{
-      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
       border-radius: var(--radius);
-      padding:16px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.03);
+      padding:14px;
+      border: 1px solid rgba(255,255,255,0.04);
     }
 
     /* -------------------------
        Stats panel
        ------------------------- */
-    #stats p{ margin:8px 0; font-size:14px }
-    .stat-row{ display:flex; justify-content:space-b
+    #stats p{ margin:6px 0; font-size:14px; }
+    .stat-row{ display:flex; justify-content:space-between; align-items:center; }
+
+    /* -------------------------
+       Buttons or controls
+       ------------------------- */
+    .btn{
+      display:block;
+      width:100%;
+      padding:12px;
+      text-align:center;
+      border-radius:8px;
+      background:var(--accent);
+      color:white;
+      font-weight:bold;
+      font-size:15px;
+      border:none;
+      margin-top:10px;
+      cursor:pointer;
+      transition:opacity .2s;
+    }
+    .btn:hover{ opacity:0.9; }
+
+    /* -------------------------
+       Responsive
+       ------------------------- */
+    @media (min-width: 768px){
+      .wrap{max-width:900px;}
+      .main{
+        display:grid;
+        grid-template-columns: 380px 1fr;
+        gap:18px;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>🦠 パンデミック・ディフェンダー</h1>
+        <p class="topline">世界を守れ！感染拡大を防ぐ戦略ゲーム</p>
+      </div>
+    </header>
+
+    <div class="main">
+      <div class="card" id="stats">
+        <p class="stat-row"><span>感染者数:</span><span>1200</span></p>
+        <p class="stat-row"><span>ワクチン率:</span><span>45%</span></p>
+        <p class="stat-row"><span>医療レベル:</span><span>中</span></p>
+      </div>
+
+      <div class="card">
+        <p>プレイヤーは政府の防衛本部のリーダー。限られたリソースで感染拡大を食い止めよう！</p>
+        <button class="btn">ゲーム開始</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
